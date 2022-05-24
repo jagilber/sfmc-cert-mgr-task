@@ -1,1 +1,36 @@
+{
+    "manifestVersion": 1,
+    "id": "build-release-task",
+    "name": "Service Fabric Connection Manager",
+    "version": "0.0.6",
+    "publisher": "jagilber",
+    "targets": [{
+        "id": "Microsoft.VisualStudio.Services"
+    }],
+    "description": "Task to manage Azure Service Fabric cluster connection for managed clusters",
+    "categories": [
+        "Azure Pipelines"
+    ],
+    "icons": {
+        "default": "images/icon.png"
+    },
+    "files": [{
+            "path": "buildandreleasetask"
 
+        },
+        {
+            "path": "ps_modules/VstsTaskSdk",
+            "packagePath": "ps_modules/VstsTaskSdk"
+        }
+    ],
+    "contributions": [{
+        "id": "custom-build-release-task",
+        "type": "ms.vss-distributed-task.task",
+        "targets": [
+            "ms.vss-distributed-task.tasks"
+        ],
+        "properties": {
+            "name": "buildandreleasetask"
+        }
+    }]
+}
