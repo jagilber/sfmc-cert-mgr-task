@@ -2,7 +2,7 @@
     "manifestVersion": 1,
     "id": "build-release-task",
     "name": "Service Fabric Connection Manager",
-    "version": "0.0.6",
+    "version": "0.0.7",
     "publisher": "jagilber",
     "targets": [{
         "id": "Microsoft.VisualStudio.Services"
@@ -17,10 +17,6 @@
     "files": [{
             "path": "buildandreleasetask"
 
-        },
-        {
-            "path": "ps_modules/VstsTaskSdk",
-            "packagePath": "ps_modules/VstsTaskSdk"
         }
     ],
     "contributions": [{
