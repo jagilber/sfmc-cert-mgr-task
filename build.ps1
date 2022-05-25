@@ -10,3 +10,6 @@ tfx extension create --manifest-globs vss-extension.json
 
 # https://marketplace.visualstudio.com/manage/createpublisher?managePageRedirect=true
 # https://marketplace.visualstudio.com/manage/publishers/jagilber
+
+#[System.Convert]::ToBase64String([System.IO.File]::ReadAllBytes("C:\path\to\certificate.pfx"))
+[System.Convert]::ToBase64String([System.IO.File]::ReadAllBytes("C:\temp\sfjagilber-sfjagilber-20220525.pfx"))

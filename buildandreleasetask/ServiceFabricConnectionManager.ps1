@@ -255,6 +255,7 @@ function update-thumbprint() {
         certLookup           = $connectedServiceEndpoint.Auth.Parameters.CertLookup
         servercertthumbprint = $clusterCertificateThumbprint
         certificate          = $connectedServiceEndpoint.Auth.Parameters.Certificate
+        certificatePassword          = $connectedServiceEndpoint.Auth.Parameters.CertificatePassword
     }
     write-host "p $($p|convertto-json)"
     $serviceConnection.authorization.parameters = $p

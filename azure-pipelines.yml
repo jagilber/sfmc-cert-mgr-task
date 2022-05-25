@@ -1,0 +1,71 @@
+# .NET Desktop
+# Example azure devops build, publish, release (deploy)
+# requires service fabric 'service connection' configuration
+# https://docs.microsoft.com/en-us/azure/service-fabric/service-fabric-tutorial-deploy-app-with-cicd-vsts
+# https://docs.microsoft.com/en-us/azure/devops/pipelines/tasks/deploy/service-fabric-deploy?view=azure-devops
+
+trigger:
+- master
+
+pool:
+  vmImage: 'windows-latest'
+
+variables:
+  System.Debug: true
+  thumbprint: xxxxxxxxxxxxxx
+  clusterEndpoint: xxxx.xxxx.cloudapp.azure.com
+  serviceConnectionName: serviceFabricConnection
+  azureSubscription: xxxxxx
+  timeoutSec: 600
+
+steps:
+- powershell: |
+    $psversiontable
+    $publicIp = (Invoke-RestMethod https://ipinfo.io/json).ip
+    write-host "current public ip:$publicIp" -ForegroundColor Green
+    [environment]::getenvironmentvariables().getenumerator()|sort Name
+    (dir ([environment]::getenvironmentvariable('PIPELINE_WORKSPACE')) -re).fullName;
+    [net.servicePointManager]::Expect100Continue = $true;[net.servicePointManager]::SecurityProtocol = [net.SecurityProtocolType]::Tls12;
+    invoke-webRequest "https://raw.githubusercontent.com/jagilber/powershellScripts/master/serviceFabric/drafts/sf-managedconnect.ps1" -outFile "$pwd/sf-connect.ps1";
+    ./sf-managed-connect.ps1 -clusterEndpoint $env:clusterEndpoint -thumbprint $env:thumbprint
+  errorActionPreference: continue
+  displayName: "PowerShell Troubleshooting Script"
+  failOnStderr: false
+  ignoreLASTEXITCODE: true
+  env:  
+    thumbprint: $(thumbprint))
+    clusterEndpoint: $(clusterEndpoint)
+
+- task: ServiceFabricConnectionManager@0
+  inputs:
+    clusterConnection: $(serviceConnectionName)
+    azureSubscription: $(azureSubscription)
+    Inline: |
+      write-host "starting inline"
+      $error.Clear()
+      $ErrorActionPreference = "Continue"
+      $PSModuleAutoLoadingPreference = 2
+      $verbosePreference = $debugpreference = 'continue'
+      $psversiontable
+      [environment]::getenvironmentvariables().getenumerator()|sort Name
+      write-host "finished inline"
+  env:  
+    thumbprint: $(thumbprint)
+    accessToken: $(System.AccessToken)
+    connectionName: $(serviceConnectionName)
+
+- task: ServiceFabricPowerShell@1
+  inputs:
+    clusterConnection: 'serviceFabricConnection'
+    ScriptType: 'InlineScript'
+    Inline: |
+      write-host "starting inline"
+      [environment]::getenvironmentvariables().getenumerator()|sort Name
+
+# - task: ServiceFabricDeploy@1
+#   inputs:
+#     applicationPackagePath: 'test'
+#     serviceConnectionName: 'serviceFabricConnection'
+#     publishProfilePath: 'cloud.xml'
+#     overwriteBehavior: 'SameAppTypeAndVersion'
+
