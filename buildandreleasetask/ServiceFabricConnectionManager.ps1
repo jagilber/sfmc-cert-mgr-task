@@ -23,6 +23,9 @@ try
 
     $global:operationId = $SF_Operations.Undefined
     $connectedServiceEndpoint = Get-VstsEndpoint -Name $serviceConnectionName -Require
+    write-host "connectedServiceEndpoint: $($connectedServiceEndpoint | convertto-json)"
+    write-host "cert length: $($connectedServiceEndpoint.Auth.Parameters.Certificate.length())"
+
     $clusterConnectionParameters = @{}
 
     if($azureSubscriptionName) {
