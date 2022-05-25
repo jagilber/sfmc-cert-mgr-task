@@ -5,15 +5,19 @@ Import-VstsLocStrings "$PSScriptRoot\Task.json"
 
 # Get inputs.
 $serviceConnectionName = Get-VstsInput -Name serviceConnectionName -Require
-#$scriptType = Get-VstsInput -Name ScriptType -Require
-#$scriptPath = Get-VstsInput -Name ScriptPath
+$scriptType = 'InlineScript' #Get-VstsInput -Name ScriptType -Require
+$scriptPath = "" #Get-VstsInput -Name ScriptPath
 $scriptInline = Get-VstsInput -Name Inline
-#$scriptArguments = Get-VstsInput -Name ScriptArguments
+$scriptArguments = '' #Get-VstsInput -Name ScriptArguments
 $azureSubscriptionName = Get-VsTsInput -Name azureSubscriptionEndpoint
+
+write-host "serviceConnectionName: $serviceConnectionName"
+write-host "azureSubscriptionName: $azureSubscriptionName"
 
 $certificate = $null
 try
 {
+    write-host "starting"
     # Initialize Service Fabric.
     Import-Module $PSScriptRoot\ps_modules\ServiceFabricHelpers
 
@@ -22,13 +26,13 @@ try
     $clusterConnectionParameters = @{}
 
     if($azureSubscriptionName) {
-        # check for managed cluster server thumbprint
+        write-host "check for managed cluster server thumbprint"
         $azureSubscriptionEndpoint = Get-VstsEndpoint -Name $azureSubscriptionName
         if ($azureSubscriptionEndpoint.Auth.Scheme -ne "ServicePrincipal")
         {
            # throw (Get-VstsLocString -Key UnsupportedARMAuthScheme -ArgumentList $connectedServiceEndpoint.Auth.Scheme)
         }
-
+        write-host "azureSubscriptionEndpoint: $($azureSubscriptionEndpoint | convertto-json)"
         $userName = $azureSubscriptionEndpoint.Auth.Parameters.ServicePrincipalId
         write-host "username: $username"
         $password = $azureSubscriptionEndpoint.Auth.Parameters.ServicePrincipalKey
@@ -37,10 +41,12 @@ try
 
     try
     {
+        write-host "Connect-ServiceFabricClusterFromServiceEndpoint"
         $certificate = Connect-ServiceFabricClusterFromServiceEndpoint -ClusterConnectionParameters $clusterConnectionParameters -ConnectedServiceEndpoint $connectedServiceEndpoint
     }
     catch
     {
+        write-host "Connect-ServiceFabricClusterFromServiceEndpoint exception: $($exception | out-string)"
         Publish-Telemetry -TaskName 'ServiceFabricPowerShell' -OperationId $global:operationId  -ErrorData $_
         #todo remove #throw
     }
@@ -49,6 +55,7 @@ try
     If ($scriptType -eq "InlineScript")
     {
         $tempFileName = [guid]::NewGuid().ToString() + ".ps1";
+        write-host "using inlinescript"
         $scriptPath = [System.IO.Path]::Combine([System.IO.Path]::GetTempPath(), $tempFileName);
         ($scriptInline | Out-File $scriptPath)
     }

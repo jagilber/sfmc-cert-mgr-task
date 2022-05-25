@@ -86,8 +86,7 @@ function Invoke-Tool { # TODO: RENAME TO INVOKE-PROCESS?
         [string]$Arguments,
         [string]$WorkingDirectory,
         [System.Text.Encoding]$Encoding,
-        [switch]$RequireExitCodeZero,
-        [bool]$IgnoreHostException)
+        [switch]$RequireExitCodeZero)
 
     Trace-EnteringInvocation $MyInvocation
     $isPushed = $false
@@ -105,15 +104,7 @@ function Invoke-Tool { # TODO: RENAME TO INVOKE-PROCESS?
 
         $FileName = $FileName.Replace('"', '').Replace("'", "''")
         Write-Host "##[command]""$FileName"" $Arguments"
-        try {
-            Invoke-Expression "& '$FileName' --% $Arguments"
-        } catch [System.Management.Automation.Host.HostException] {
-            if ($IgnoreHostException -eq $False) {
-                throw
-            }
-
-            Write-Host "##[warning]Host Exception was thrown by Invoke-Expression, suppress it due IgnoreHostException setting"
-        }
+        Invoke-Expression "& '$FileName' --% $Arguments"
         Write-Verbose "Exit code: $LASTEXITCODE"
         if ($RequireExitCodeZero -and $LASTEXITCODE -ne 0) {
             Write-Error (Get-LocString -Key PSLIB_Process0ExitedWithCode1 -ArgumentList ([System.IO.Path]::GetFileName($FileName)), $LASTEXITCODE)
