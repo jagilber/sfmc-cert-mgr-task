@@ -130,6 +130,9 @@ function update-thumbprint() {
     [environment]::getenvironmentvariables()
 
     write-host "connectedServiceEndpoint: $($connectedServiceEndpoint | convertto-json)"
+    $serviceConnectionFqdn = $connectedServiceEndpoint.url.replace('tcp://', '')
+    write-host "cluster connection service url: $serviceConnectionFqdn"
+
     $serverThumbprint = $connectedServiceEndpoint.Auth.Parameters.servercertthumbprint
     write-host "cluster connection server certificate thumbprint: $serverThumbprint"
     write-host "cert length: $($connectedServiceEndpoint.Auth.Parameters.Certificate.length)"
@@ -138,15 +141,15 @@ function update-thumbprint() {
         write-host "check for managed cluster server thumbprint"
 
         if ($azureSubscriptionEndpoint.Auth.Scheme -ne "ServicePrincipal") {
-            # throw (Get-VstsLocString -Key UnsupportedARMAuthScheme -ArgumentList $connectedServiceEndpoint.Auth.Scheme)
+            throw (Get-VstsLocString -Key UnsupportedARMAuthScheme -ArgumentList $connectedServiceEndpoint.Auth.Scheme)
         }
         write-host "azureSubscriptionEndpoint: $($azureSubscriptionEndpoint | convertto-json)"
         $clientId = $azureSubscriptionEndpoint.Auth.Parameters.ServicePrincipalId
         write-host "clientId: $clientId"
         $clientSecret = $azureSubscriptionEndpoint.Auth.Parameters.ServicePrincipalKey
-        $isPasswordEncrypted = $false
     }
-    write-host "rest logon result: $($result|convertto-json)"
+
+    # authenticating to arm
     $error.clear()
     $resource = "https://management.azure.com/"
     $tenantId = $azureSubscriptionEndpoint.Auth.Parameters.tenantId
@@ -154,7 +157,7 @@ function update-thumbprint() {
     $subscriptionId = $azureSubscriptionEndpoint.Data.subscriptionId
 
     $Body = @{
-        'resource'      = ([system.web.httpUtility]::UrlDecode($resource))
+        'resource'      = ([system.web.httpUtility]::UrlEncode($resource))
         'client_id'     = $clientId
         'grant_type'    = 'client_credentials'
         'client_secret' = $clientSecret
@@ -167,59 +170,63 @@ function update-thumbprint() {
         URI         = $endpoint
     }
 
-    write-host ($body | convertto-json)
-    write-host ($params | convertto-json)
-    write-host $clientSecret
+    write-host "arm rest logon request: $($params | convertto-json)"
     $error.Clear()
 
     $result = Invoke-RestMethod @params -Verbose -Debug
-    write-host "result: $($result | convertto-json)"
-    write-host "rest logon finished"
-    $result
+    write-host "arm rest logon result: $($result | convertto-json)"
 
+    if ($error) {
+        throw (Get-VstsLocString -Key ARMAuthFailure -ArgumentList ($result | convertto-json))
+    }
+
+    write-host "searching for all managed cluster resources"
     $filter = "resourceType eq 'Microsoft.ServiceFabric/managedclusters'"
     $expand = ''
     $top = 100
-    $header = @{
-        'Authorization' = "Bearer $($result.access_token)"
-    }
+    $header = @{'Authorization' = "Bearer $($result.access_token)" }
+    
     $url = "https://management.azure.com/subscriptions/$subscriptionId/resources?`$filter=$filter&`$expand=$expand&`$top=$top&api-version=2022-05-01"
-
-    $url
+    write-host "resource search request: $url"
     $result = Invoke-RestMethod -Method Get -uri $url -Headers $header -Verbose -Debug
-    $result | convertto-json
+    write-host "resource search result: $($result | convertto-json)"
 
-    $url = "https://management.azure.com/$($result.value.id)?api-version=2021-05-01"
+    write-host "searching for managed cluster with fqdn: $fqdn"
+    foreach ($cluster in @($result.value)) {
+        $url = "https://management.azure.com/$($cluster.id)?api-version=2021-05-01"
+        write-host "resource request: $url"
+        $resource_result = Invoke-RestMethod -Method Get -uri $url -Headers $header
+        write-host "resource result: $($resource_result | convertto-json)"
 
-    $url
-    $result = Invoke-RestMethod -Method Get -uri $url -Headers $header
-    $result | convertto-json
+        $fqdn = $resource_result.properties.fqdn
+        if ($fqdn -imatch $serviceConnectionFqdn) {
+            write-host "cluster fqdn: $fqdn matches service fabric service connection url: $serviceConnectionFqdn"
+            $clusterCertificateThumbprint = $resource_result.properties.clusterCertificateThumbprints[0]
+            write-host "clusterCertificateThumbprint $clusterCertificateThumbprint"
+    
+            if ($serverThumbprint -eq $clusterCertificateThumbprint) {
+                write-host "certificate thumbprints match. returning."
+                return
+            }
+        }
+        else {
+            write-host "cluster fqdn: $fqdn does not match service fabric service connection url: $serviceConnectionFqdn"
+            continue
+        }
+    }
 
-    $fqdn = $result.properties.fqdn
-    write-host "fqdn $fqdn"
-    $clusterCertificateThumbprint = $result.properties.clusterCertificateThumbprints[0]
-    write-host "clusterCertificateThumbprint $clusterCertificateThumbprint"
-    write-host "rest logon finished"
-
-    if ($serverThumbprint -eq $clusterCertificateThumbprint) {
-        write-host "certificate thumbprints match. returning."
-        return
+    if (!$clusterCertificateThumbprint) {
+        throw (Get-VstsLocString -Key ARMSFMCNotFound -ArgumentList $serviceConnectionFqdn)
     }
 
     write-host "certificate thumbprints do not match. attempting to update connection"
-    try {
-        $connectedServiceEndpoint.Auth.Parameters.servercertthumbprint = $clusterCertificateThumbprint
-        write-host "set directly"
-    }
-    catch {
-        write-host "cant set directly"
-    }
+    $connectedServiceEndpoint.Auth.Parameters.servercertthumbprint = $clusterCertificateThumbprint
+
     # update env?
     # https://docs.microsoft.com/en-us/azure/devops/pipelines/process/set-variables-scripts?view=azure-devops&tabs=powershell#set-an-output-variable-for-use-in-future-stages
-    #write-host "##vso[task.setvariable variable="
-    #
-    # get service fabric service connection
-    #
+    # write-host "##vso[task.setvariable variable="
+    
+    write-host "getting service fabric service connection"
     $url = "$env:SYSTEM_COLLECTIONURI/$env:SYSTEM_TEAMPROJECTID/_apis/serviceendpoint/endpoints"
     $adoAuthHeader = @{
         'authorization' = "Bearer $env:accessToken"
@@ -237,12 +244,15 @@ function update-thumbprint() {
         Erroraction = 'continue'
         Body        = $bodyParameters
     }
-    write-host ($parameters | convertto-json)
+    write-host "ado connection parameters: $($parameters | convertto-json)"
     write-host "invoke-restMethod -uri $([system.web.httpUtility]::UrlDecode($url)) -headers $adoAuthHeader"
 
+    $error.clear()
     $result = invoke-RestMethod @parameters
-    write-host "json result: $($result | convertto-json)"
-    write-host "authenticated to ado rest"
+    write-host "ado authentication result: $($result | convertto-json)"
+    if ($error) {
+        throw (Get-VstsLocString -Key ADOAuthFailure -ArgumentList ($result | convertto-json))
+    }
 
     $serviceConnection = $result.value
     $serviceConnectionThumbprint = $serviceConnection.authorization.parameters.servercertthumbprint
@@ -251,14 +261,15 @@ function update-thumbprint() {
 
     $url += "/$($serviceConnectionId)?api-version=7.1-preview.4"
     write-host "servercertthumbprint = $serverThumbprint"
-    $p = @{
+    $authorizationParameters = @{
         certLookup           = $connectedServiceEndpoint.Auth.Parameters.CertLookup
         servercertthumbprint = $clusterCertificateThumbprint
         certificate          = $connectedServiceEndpoint.Auth.Parameters.Certificate
-        certificatePassword          = $connectedServiceEndpoint.Auth.Parameters.CertificatePassword
+        certificatePassword  = $connectedServiceEndpoint.Auth.Parameters.CertificatePassword
     }
-    write-host "p $($p|convertto-json)"
-    $serviceConnection.authorization.parameters = $p
+
+    write-host "p $($authorizationParameters|convertto-json)"
+    $serviceConnection.authorization.parameters = $authorizationParameters
     $parameters = @{
         Uri         = $url
         Method      = 'PUT'
@@ -266,18 +277,21 @@ function update-thumbprint() {
         Erroraction = 'continue'
         Body        = ($serviceConnection | convertto-json -compress -depth 99)
     }
-    write-host ($parameters | convertto-json)
+    write-host "new service connection parameters: $($parameters | convertto-json)"
     write-host "invoke-restMethod -uri $([system.web.httpUtility]::UrlDecode($url)) -headers $adoAuthHeader"
+    
     $error.clear()
     $result = invoke-RestMethod @parameters
-    $result | Format-List *
-    write-host ($result | convertto-json -Depth 99)
+    write-host "ado update result: $($result | convertto-json)"
+
     if ($error) {
         write-error "error updating service endpoint $($error)"
+        throw (Get-VstsLocString -Key ADOUpdateFailure -ArgumentList ($result | convertto-json))
     }
     else {
         write-host "endpoint updated successfully"
     }
+
     write-host "finished update-thumbprint"
 }
 
