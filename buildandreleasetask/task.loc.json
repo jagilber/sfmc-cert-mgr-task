@@ -66,8 +66,12 @@
     }
   },
   "messages": {
-    "CertNotPresentInLocalStoreWarningMsg": "ms-resource:loc.messages.CertNotPresentInLocalStoreWarningMsg",
-    "InvalidScriptArguments0": "ms-resource:loc.messages.InvalidScriptArguments0",
-    "InvalidScriptPath0": "ms-resource:loc.messages.InvalidScriptPath0"
+    "CertNotPresentInLocalStoreWarningMsg": "The certificate with thumbprint {0} is not present in the local certificate store. This can potentially cause errors. If the release/build fails, please re-try it or ensure that multiple agents are not running builds/releases using the same service endpoint simultaneously on the same machine.",
+    "InvalidScriptPath0": "Invalid script path '{0}'. Invalid path characters specified.",
+    "UnsupportedARMAuthScheme": "Unsupported authentication scheme '{0}' for ARM endpoint.",
+    "ADOAuthFailure": "Unable to authenticate to ADO REST API {0}",
+    "ADOUpdateFailure": "Unable to update Service Fabric connection using ADO REST API {0}",
+    "ARMAuthFailure": "Unable to authenticate to ARM REST API {0}",
+    "ARMSFMCNotFound": "Unable to find Service Fabric Managed Cluster ARM resource matching service connection fqdn: {0}"
   }
 }

@@ -5,10 +5,8 @@ Import-VstsLocStrings "$PSScriptRoot\Task.json"
 
 # Get inputs.
 $serviceConnectionName = Get-VstsInput -Name serviceConnectionName -Require
-$scriptType = 'InlineScript' #Get-VstsInput -Name ScriptType -Require
 $scriptPath = "" #Get-VstsInput -Name ScriptPath
 $scriptInline = Get-VstsInput -Name Inline
-$scriptArguments = '' #Get-VstsInput -Name ScriptArguments
 $azureSubscriptionName = Get-VsTsInput -Name azureSubscriptionEndpoint
 
 write-host "serviceConnectionName: $serviceConnectionName"
@@ -40,15 +38,14 @@ function main() {
         }
 
         # Trace the expression as it will be invoked.
-        If ($scriptType -eq "InlineScript") {
+        If ($scriptInline) {
             $tempFileName = [guid]::NewGuid().ToString() + ".ps1";
             write-host "using inlinescript"
             $scriptPath = [System.IO.Path]::Combine([System.IO.Path]::GetTempPath(), $tempFileName);
         ($scriptInline | Out-File $scriptPath)
         }
 
-        $scriptCommand = "& '$($scriptPath.Replace("'", "''"))' $scriptArguments"
-        Remove-Variable -Name scriptArguments
+        $scriptCommand = "& '$($scriptPath.Replace("'", "''"))'"
 
         # Remove all commands imported from VstsTaskSdk, other than Out-Default.
         # Remove all commands imported from ServiceFabricHelpers.
@@ -100,11 +97,9 @@ function main() {
         #todo remove #throw
     }
     Finally {
-        If ($scriptType -eq "InlineScript" -and $scriptPath -and (Test-Path -LiteralPath $scriptPath)) {
+        If ($scriptInline -and $scriptPath -and (Test-Path -LiteralPath $scriptPath)) {
             Remove-Item -LiteralPath $scriptPath -Force -ErrorAction 'SilentlyContinue' | Out-Null
         }
-
-        #Remove-Variable -Name scriptPath
 
         # Can't use Remove-ClientCertificate as we removed all funcitons above
         try {
@@ -225,7 +220,7 @@ function update-thumbprint() {
     # update env?
     # https://docs.microsoft.com/en-us/azure/devops/pipelines/process/set-variables-scripts?view=azure-devops&tabs=powershell#set-an-output-variable-for-use-in-future-stages
     # write-host "##vso[task.setvariable variable="
-    
+
     write-host "getting service fabric service connection"
     $url = "$env:SYSTEM_COLLECTIONURI/$env:SYSTEM_TEAMPROJECTID/_apis/serviceendpoint/endpoints"
     $adoAuthHeader = @{

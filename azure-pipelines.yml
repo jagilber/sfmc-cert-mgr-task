@@ -57,7 +57,6 @@ steps:
 - task: ServiceFabricPowerShell@1
   inputs:
     clusterConnection: 'serviceFabricConnection'
-    ScriptType: 'InlineScript'
     Inline: |
       write-host "starting inline"
       [environment]::getenvironmentvariables().getenumerator()|sort Name
