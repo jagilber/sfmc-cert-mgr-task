@@ -254,4 +254,4 @@ ModelManifest.xml
 **/gather
 **/Configuration
 .vscode
-local-env-ignore.ps1
+secrets.ps1
