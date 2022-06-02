@@ -1,12 +1,26 @@
 # https://docs.microsoft.com/en-us/azure/devops/extend/develop/add-build-task?view=azure-devops
-write-host "cd .\buildandreleasetask"
-cd .\buildandreleasetask
+
+param(
+    $vstsAccount = 'jagilber@microsoft.com'
+)
+$root = $pwd
+if($PSScriptRoot) {
+    $root = $PSScriptRoot
+}
+
+write-host "cd $root\buildandreleasetask"
+cd $root\buildandreleasetask
 write-host "tsc"
 tsc
-write-host "cd .."
-cd ..
+write-host "cd $root"
+cd $root
 write-host "tfx extension create --manifest-globs vss-extension.json"
 tfx extension create --manifest-globs vss-extension.json
+
+$vsix = (resolve-path *.vsix).Path
+
+write-host "tfx extension publish --manifest-globs vss-extension.json --vsix $vsix --share-with $vstsAccount"
+tfx extension publish --manifest-globs vss-extension.json --vsix $vsix --share-with $vstsAccount
 
 # https://marketplace.visualstudio.com/manage/createpublisher?managePageRedirect=true
 # https://marketplace.visualstudio.com/manage/publishers/jagilber

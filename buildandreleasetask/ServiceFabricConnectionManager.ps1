@@ -15,6 +15,7 @@ write-host "azureSubscriptionName: $azureSubscriptionName"
 $certificate = $null
 $connectedServiceEndpoint = Get-VstsEndpoint -Name $serviceConnectionName -Require
 $azureSubscriptionEndpoint = Get-VstsEndpoint -Name $azureSubscriptionName
+$armAuthResource = 'https://management.azure.com'
 
 function main() {
     try {
@@ -119,9 +120,8 @@ function main() {
 function update-thumbprint() {
     write-host "starting update-thumbprint"
     $error.Clear()
-    $ErrorActionPreference = "Continue"
-    $verbosePreference = $debugpreference = 'continue'
-    $psversiontable
+    $ErrorActionPreference = $verbosePreference = $debugpreference = 'continue'
+    write-host "psversiontable: $($psversiontable)"
     [environment]::getenvironmentvariables()
 
     write-host "connectedServiceEndpoint: $($connectedServiceEndpoint | convertto-json)"
@@ -146,13 +146,12 @@ function update-thumbprint() {
 
     # authenticating to arm
     $error.clear()
-    $resource = "https://management.azure.com/"
     $tenantId = $azureSubscriptionEndpoint.Auth.Parameters.tenantId
     $endpoint = "$($azureSubscriptionEndpoint.Data.environmentAuthorityUrl)/$tenantId/oauth2/token"
     $subscriptionId = $azureSubscriptionEndpoint.Data.subscriptionId
 
     $Body = @{
-        'resource'      = ([system.web.httpUtility]::UrlEncode($resource))
+        'resource'      = ([system.web.httpUtility]::UrlEncode("$armAuthResource/"))
         'client_id'     = $clientId
         'grant_type'    = 'client_credentials'
         'client_secret' = $clientSecret
@@ -177,18 +176,19 @@ function update-thumbprint() {
 
     write-host "searching for all managed cluster resources"
     $filter = "resourceType eq 'Microsoft.ServiceFabric/managedclusters'"
-    $expand = ''
-    $top = 100
+    #$expand = ''
+    #$top = 100
     $header = @{'Authorization' = "Bearer $($result.access_token)" }
     
-    $url = "https://management.azure.com/subscriptions/$subscriptionId/resources?`$filter=$filter&`$expand=$expand&`$top=$top&api-version=2022-05-01"
+    #$url = "$armAuthResource/subscriptions/$subscriptionId/resources?`$filter=$filter&`$expand=$expand&`$top=$top&api-version=2022-05-01"
+    $url = "$armAuthResource/subscriptions/$subscriptionId/resources?`$filter=$filter&api-version=2022-05-01"
     write-host "resource search request: $url"
     $result = Invoke-RestMethod -Method Get -uri $url -Headers $header -Verbose -Debug
     write-host "resource search result: $($result | convertto-json)"
 
     write-host "searching for managed cluster with fqdn: $fqdn"
     foreach ($cluster in @($result.value)) {
-        $url = "https://management.azure.com/$($cluster.id)?api-version=2021-05-01"
+        $url = "$armAuthResource/$($cluster.id)?api-version=2021-05-01"
         write-host "resource request: $url"
         $resource_result = Invoke-RestMethod -Method Get -uri $url -Headers $header
         write-host "resource result: $($resource_result | convertto-json)"
