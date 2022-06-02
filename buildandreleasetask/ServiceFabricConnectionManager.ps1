@@ -246,9 +246,9 @@ function update-ADOSFConnection($adoConnection, $auth) {
     write-host "updating ado sf connection"
     # update environment variable for endpoint for subsequent tasks
     # https://docs.microsoft.com/en-us/azure/devops/pipelines/process/set-variables-scripts?view=azure-devops&tabs=powershell#set-an-output-variable-for-use-in-future-stages
-
     $error.clear()
     try {
+        write-host "executing task.setvariable for endpoint"
         write-host "##vso[task.setvariable variable=ENDPOINT_AUTH_$serviceConnectionName]$auth"
         if ($error) {
             write-warning "error updating env var: $($error | out-string)"
@@ -273,13 +273,13 @@ function update-ADOSFConnection($adoConnection, $auth) {
         certificate          = $global:connectedServiceEndpoint.Auth.Parameters.Certificate
         certificatePassword  = $global:connectedServiceEndpoint.Auth.Parameters.CertificatePassword
     }
-    $authorization = @{
-        parameters = $authorizationParameters
-        scheme     = $global:connectedServiceEndpoint.Auth.Scheme
-    }
+    #$authorization = @{
+    #    parameters = $authorizationParameters
+    #    scheme     = $global:connectedServiceEndpoint.Auth.Scheme
+    #}
     write-host "new authorization: $($authorization|convertto-json -Depth 99)"
-    #$serviceConnection.authorization.parameters = $authorizationParameters
-    $serviceConnection.authorization = $authorization
+    $serviceConnection.authorization.parameters = $authorizationParameters
+    #$serviceConnection.authorization = $authorization
 
     $adoAuthHeader = @{
         'authorization' = "Bearer $env:accessToken"
@@ -294,22 +294,23 @@ function update-ADOSFConnection($adoConnection, $auth) {
         Body        = ($serviceConnection | convertto-json -compress -depth 99)
     }
     write-host "new service connection parameters: $($parameters | convertto-json -Depth 99)"
-    write-host "invoke-webRequest -uri $([system.web.httpUtility]::UrlDecode($url)) -headers $adoAuthHeader"
+    write-host "invoke-restMethod -uri $([system.web.httpUtility]::UrlDecode($url)) -headers $adoAuthHeader"
     
     $error.clear()
     try {
-        $result = invoke-webrequest @parameters
+        $result = invoke-restMethod @parameters
+        if ($error) {
+            write-error "error updating service endpoint $($error)"
+            throw (Get-VstsLocString -Key ADOUpdateFailure -ArgumentList ($result | convertto-json))
+        }
+        else {
+            write-host "endpoint updated successfully"
+        }
+    
         write-host "ado update result: $($result | convertto-json)"
     }
     catch {
         write-host "update exception $($_)`r`n$($error | out-string)"
-    }
-    if ($error) {
-        write-error "error updating service endpoint $($error)"
-        throw (Get-VstsLocString -Key ADOUpdateFailure -ArgumentList ($result | convertto-json))
-    }
-    else {
-        write-host "endpoint updated successfully"
     }
 }
 
