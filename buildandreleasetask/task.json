@@ -1,77 +1,78 @@
 {
-    "id": "1b983c90-fb2d-472e-b0bf-65d011ccd914",
-    "name": "ServiceFabricConnectionManager",
-    "friendlyName": "Service Fabric Connection Manager",
-    "description": "Task to manage Azure Service Fabric cluster connection for managed clusters",
-    "helpUrl": "https://docs.microsoft.com/azure/devops/pipelines/tasks/utility/service-fabric-connection-manager",
-    "helpMarkDown": "[Learn more about this task](https://go.microsoft.com/fwlink/?LinkID=)",
-    "category": "Utility",
-    "visibility": [
-        "Build",
-        "Release"
-    ],
-    "runsOn": [
-        "Agent",
-        "DeploymentGroup"
-    ],
-    "author": "jagilber",
-    "version": {
-        "Major": 0,
-        "Minor": 2,
-        "Patch": 4
+  "id": "1b983c90-fb2d-472e-b0bf-65d011ccd914",
+  "name": "ServiceFabricConnectionManager",
+  "friendlyName": "Service Fabric Connection Manager",
+  "description": "Task to manage Azure Service Fabric cluster connection for managed clusters",
+  "helpUrl": "https://docs.microsoft.com/azure/devops/pipelines/tasks/utility/service-fabric-connection-manager",
+  "helpMarkDown": "[Learn more about this task](https://go.microsoft.com/fwlink/?LinkID=)",
+  "category": "Utility",
+  "visibility": [
+    "Build",
+    "Release"
+  ],
+  "runsOn": [
+    "Agent",
+    "DeploymentGroup"
+  ],
+  "author": "jagilber",
+  "version": {
+    "Major": 0,
+    "Minor": 2,
+    "Patch": 36
+  },
+  "demands": [
+    "Cmd"
+  ],
+  "minimumAgentVersion": "1.95.0",
+  "inputs": [
+    {
+      "name": "serviceConnectionName",
+      "aliases": [
+        "clusterConnection"
+      ],
+      "type": "connectedService:servicefabric",
+      "label": "Cluster Service Connection",
+      "defaultValue": "",
+      "required": true,
+      "helpMarkDown": "Azure Service Fabric cluster which will have an established service connection when executing the specified PowerShell script."
     },
-    "demands": [
-        "Cmd"
-    ],
-    "minimumAgentVersion": "1.95.0",
-    "inputs": [{
-            "name": "serviceConnectionName",
-            "aliases": [
-                "clusterConnection"
-            ],
-            "type": "connectedService:servicefabric",
-            "label": "Cluster Service Connection",
-            "defaultValue": "",
-            "required": true,
-            "helpMarkDown": "Azure Service Fabric cluster which will have an established service connection when executing the specified PowerShell script."
-        },
-        {
-            "name": "azureSubscriptionEndpoint",
-            "aliases": [
-                "azureSubscription"
-            ],
-            "type": "connectedService:AzureRM",
-            "label": "Azure subscription",
-            "helpMarkDown": "Select an Azure subscription. Use this option for service fabric managed clusters.",
-            "required": false
-        },
-        {
-            "name": "Inline",
-            "type": "multiLine",
-            "label": "Inline Script",
-            "required": false,
-            "defaultValue": "# You can write your PowerShell scripts inline here. \n# You can also pass predefined and custom variables to this script using arguments",
-            "helpMarkDown": "Enter the script to execute.",
-            "properties": {
-                "resizable": "true",
-                "rows": "10",
-                "maxLength": "500"
-            }
-        }
-    ],
-    "instanceNameFormat": "Service Fabric Connection Manager",
-    "execution": {
-        "PowerShell3": {
-            "target": "ServiceFabricConnectionManager.ps1"
-        }
+    {
+      "name": "azureSubscriptionEndpoint",
+      "aliases": [
+        "azureSubscription"
+      ],
+      "type": "connectedService:AzureRM",
+      "label": "Azure subscription",
+      "helpMarkDown": "Select an Azure subscription. Use this option for service fabric managed clusters.",
+      "required": false
     },
-    "messages": {
-        "CertNotPresentInLocalStoreWarningMsg": "The certificate with thumbprint {0} is not present in the local certificate store. This can potentially cause errors. If the release/build fails, please re-try it or ensure that multiple agents are not running builds/releases using the same service endpoint simultaneously on the same machine.",
-        "InvalidScriptPath0": "Invalid script path '{0}'. Invalid path characters specified.",
-        "UnsupportedARMAuthScheme": "Unsupported authentication scheme '{0}' for ARM endpoint.",
-        "ADOAuthFailure": "Unable to authenticate to ADO REST API {0}",
-        "ADOUpdateFailure": "Unable to update Service Fabric connection using ADO REST API {0}",
-        "ARMAuthFailure": "Unable to authenticate to ARM REST API {0}",
-        "ARMSFMCNotFound": "Unable to find Service Fabric Managed Cluster ARM resource matching service connection fqdn: {0}"
+    {
+      "name": "Inline",
+      "type": "multiLine",
+      "label": "Inline Script",
+      "required": false,
+      "defaultValue": "# You can write your PowerShell scripts inline here. \n# You can also pass predefined and custom variables to this script using arguments",
+      "helpMarkDown": "Enter the script to execute.",
+      "properties": {
+        "resizable": "true",
+        "rows": "10",
+        "maxLength": "500"
+      }
     }
+  ],
+  "instanceNameFormat": "Service Fabric Connection Manager",
+  "execution": {
+    "PowerShell3": {
+      "target": "ServiceFabricConnectionManager.ps1"
+    }
+  },
+  "messages": {
+    "CertNotPresentInLocalStoreWarningMsg": "The certificate with thumbprint {0} is not present in the local certificate store. This can potentially cause errors. If the release/build fails, please re-try it or ensure that multiple agents are not running builds/releases using the same service endpoint simultaneously on the same machine.",
+    "InvalidScriptPath0": "Invalid script path '{0}'. Invalid path characters specified.",
+    "UnsupportedARMAuthScheme": "Unsupported authentication scheme '{0}' for ARM endpoint.",
+    "ADOAuthFailure": "Unable to authenticate to ADO REST API {0}",
+    "ADOUpdateFailure": "Unable to update Service Fabric connection using ADO REST API {0}",
+    "ARMAuthFailure": "Unable to authenticate to ARM REST API {0}",
+    "ARMSFMCNotFound": "Unable to find Service Fabric Managed Cluster ARM resource matching service connection fqdn: {0}"
+  }
 }

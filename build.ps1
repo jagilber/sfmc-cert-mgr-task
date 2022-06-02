@@ -16,10 +16,22 @@ if((test-path $root\$localEnv)) {
 
 write-host "cd $root\buildandreleasetask"
 cd $root\buildandreleasetask
+
+write-host "updating json versions"
+$json = get-content -raw .\task.json | convertfrom-json
+$json.version.patch++
+$json | convertto-json -depth 99 | out-file .\task.json
+
+$json = get-content -raw .\task.loc.json | convertfrom-json
+$json.version.patch++
+$json | convertto-json -depth 99 | out-file .\task.loc.json
+
 write-host "tsc"
 tsc
 write-host "cd $root"
 cd $root
+
+
 write-host "tfx extension create --manifest-globs vss-extension.json --rev-version"
 tfx extension create --manifest-globs vss-extension.json --rev-version
 

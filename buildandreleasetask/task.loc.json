@@ -18,13 +18,14 @@
   "version": {
     "Major": 0,
     "Minor": 2,
-    "Patch": 4
+    "Patch": 36
   },
   "demands": [
     "Cmd"
   ],
   "minimumAgentVersion": "1.95.0",
-  "inputs": [{
+  "inputs": [
+    {
       "name": "serviceConnectionName",
       "aliases": [
         "clusterConnection"
