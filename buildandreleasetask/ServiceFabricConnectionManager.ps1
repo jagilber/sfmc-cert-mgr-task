@@ -244,27 +244,28 @@ function get-ARMConnection() {
 
 function update-ADOSFConnection($adoConnection, $auth) {
     write-host "updating ado sf connection"
-    # update env?
+    # update environment variable for endpoint for subsequent tasks
     # https://docs.microsoft.com/en-us/azure/devops/pipelines/process/set-variables-scripts?view=azure-devops&tabs=powershell#set-an-output-variable-for-use-in-future-stages
-    # write-host "##vso[task.setvariable variable="
+
     $error.clear()
     try {
         write-host "##vso[task.setvariable variable=ENDPOINT_AUTH_$serviceConnectionName]$auth"
         if ($error) {
             write-warning "error updating env var: $($error | out-string)"
         }
-
-        #$base64after = [convert]::ToBase64String([text.encoding]::UTF8.GetBytes([environment]::getenvironmentvariable("ENDPOINT_AUTH_$serviceConnectionName")))
-        #write-host "env var after:`r`n$base64after"
     }
-    catch { write-host "exception $($error | out-string)" }
+    catch { 
+        write-host "exception $($error | out-string)" 
+    }
 
-    $serviceConnection = $adoConnection.value
+    $serviceConnection = @($adoConnection.value)[0]
     $serviceConnectionThumbprint = $serviceConnection.authorization.parameters.servercertthumbprint
     write-host "service connection thumbprint:$serviceConnectionThumbprint" -ForegroundColor Cyan
     $serviceConnectionId = $serviceConnection.Id
     $url = "$env:SYSTEM_COLLECTIONURI/$env:SYSTEM_TEAMPROJECTID/_apis/serviceendpoint/endpoints"
+    #$url = "$($env:SYSTEM_TEAMFOUNDATIONSERVERURI)_apis/serviceendpoint/endpoints"
     $url += "/$($serviceConnectionId)?api-version=7.1-preview.4"
+
     write-host "servercertthumbprint = $global:adoCurrentServerThumbprint"
     $authorizationParameters = @{
         certLookup           = $global:connectedServiceEndpoint.Auth.Parameters.CertLookup
@@ -272,9 +273,13 @@ function update-ADOSFConnection($adoConnection, $auth) {
         certificate          = $global:connectedServiceEndpoint.Auth.Parameters.Certificate
         certificatePassword  = $global:connectedServiceEndpoint.Auth.Parameters.CertificatePassword
     }
-
-    write-host "authorizationParameters: $($authorizationParameters|convertto-json)"
-    $serviceConnection.authorization.parameters = $authorizationParameters
+    $authorization = @{
+        parameters = $authorizationParameters
+        scheme     = $global:connectedServiceEndpoint.Auth.Scheme
+    }
+    write-host "new authorization: $($authorization|convertto-json -Depth 99)"
+    #$serviceConnection.authorization.parameters = $authorizationParameters
+    $serviceConnection.authorization = $authorization
 
     $adoAuthHeader = @{
         'authorization' = "Bearer $env:accessToken"
@@ -286,15 +291,19 @@ function update-ADOSFConnection($adoConnection, $auth) {
         Method      = 'PUT'
         Headers     = $adoAuthHeader
         Erroraction = 'continue'
-        Body        = $serviceConnection
+        Body        = ($serviceConnection | convertto-json -compress -depth 99)
     }
-    write-host "new service connection parameters: $($parameters | convertto-json)"
-    write-host "invoke-restMethod -uri $([system.web.httpUtility]::UrlDecode($url)) -headers $adoAuthHeader"
+    write-host "new service connection parameters: $($parameters | convertto-json -Depth 99)"
+    write-host "invoke-webRequest -uri $([system.web.httpUtility]::UrlDecode($url)) -headers $adoAuthHeader"
     
     $error.clear()
-    $result = invoke-RestMethod @parameters
-    write-host "ado update result: $($result | convertto-json)"
-
+    try {
+        $result = invoke-webrequest @parameters
+        write-host "ado update result: $($result | convertto-json)"
+    }
+    catch {
+        write-host "update exception $($_)`r`n$($error | out-string)"
+    }
     if ($error) {
         write-error "error updating service endpoint $($error)"
         throw (Get-VstsLocString -Key ADOUpdateFailure -ArgumentList ($result | convertto-json))
